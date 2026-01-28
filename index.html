@@ -127,7 +127,7 @@
     };
 
     window.authLocal = () => { mode = 'local'; checkPinSetup(); }
-    document.getElementById('btn-google').onclick = () => signInWithPopup(auth, provider).then(r => { mode = 'cloud'; userUid = r.user.uid; checkPinSetup(); });
+    document.getElementById('btn-google').onclick = () => signInWithPopup(auth, provider).then(r => { mode = 'cloud'; userUid = r.user.uid; localStorage.setItem('user_mode', 'cloud'); localStorage.setItem('user_uid', r.user.uid); checkPinSetup(); });
 
     async function checkPinSetup() {
         if(mode === 'local') pinCode = localStorage.getItem('mp_pin');
@@ -149,6 +149,31 @@
         if(mode === 'local') workers = JSON.parse(localStorage.getItem('mp_data')) || [];
         else { const ds = await getDoc(doc(db,"data",userUid)); if(ds.exists()) workers = ds.data().w || []; }
         render();
+    }
+
+    // Проверка сохраненной сессии при загрузке
+    async function autoLogin() {
+        const savedMode = localStorage.getItem('user_mode');
+        const savedUid = localStorage.getItem('user_uid');
+        
+        if(savedMode === 'local') {
+            mode = 'local';
+            if(localStorage.getItem('mp_pin')) {
+                document.getElementById('screen-login').classList.add('hidden');
+                document.getElementById('screen-pin').classList.remove('hidden');
+                document.getElementById('pin-title').innerText = dict[curL].pinT;
+                pinCode = localStorage.getItem('mp_pin');
+            }
+        } else if(savedMode === 'cloud' && savedUid) {
+            mode = 'cloud';
+            userUid = savedUid;
+            if(localStorage.getItem('mp_pin')) {
+                document.getElementById('screen-login').classList.add('hidden');
+                document.getElementById('screen-pin').classList.remove('hidden');
+                document.getElementById('pin-title').innerText = dict[curL].pinT;
+                pinCode = localStorage.getItem('mp_pin');
+            }
+        }
     }
 
     window.setLang = (l) => {
@@ -229,6 +254,7 @@
     const mS=document.getElementById('mS'), yS=document.getElementById('yS');
     for(let y=2025;y<=2028;y++) yS.add(new Option(y,y,false,y===new Date().getFullYear()));
     setLang('ru');
+    autoLogin();
 </script>
 </body>
 </html>
