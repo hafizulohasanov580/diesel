@@ -9,8 +9,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
 
     <style>
-        :root { --p: #f97316; --bg: #0f172a; --card: #1e293b; --txt: #f8fafc; --brd: #475569; --s: #22c55e; }
-        body.light { --bg: #f8fafc; --card: #ffffff; --txt: #0f172a; --brd: #cbd5e1; }
+        :root { --p: #f97316; --bg: #0f172a; --card: #1e293b; --txt: #f8fafc; --brd: #475569; --s: #22c55e; --sun: #ef4444; }
+        body.light { --bg: #f8fafc; --card: #ffffff; --txt: #0f172a; --brd: #cbd5e1; --sun: #dc2626; }
         * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; transition: 0.2s; }
         body { margin: 0; background: var(--bg); color: var(--txt); overflow: hidden; font-size: 12px; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -31,10 +31,12 @@
         .controls { padding: 12px; display: flex; gap: 8px; background: var(--card); border-bottom: 1px solid var(--brd); }
         .txt-in { background: var(--bg); border: 1px solid var(--brd); padding: 10px; color: var(--txt); border-radius: 6px; flex: 2; outline: none; }
         .view { width: 100vw; height: calc(100vh - 140px); overflow: auto; }
+        .total-footer { background: var(--p); color: white; padding: 12px 15px; font-weight: bold; text-align: center; border-top: 2px solid var(--brd); font-size: 14px; position: sticky; bottom: 0; left: 0; right: 0; z-index: 100; margin-top: auto; }
         table { border-collapse: separate; border-spacing: 0; width: 100%; }
         thead th { position: sticky; top: 0; background: var(--card); z-index: 50; padding: 10px; border-bottom: 1px solid var(--p); color: var(--txt); font-size: 11px; }
         .cw { position: sticky; left: 0; z-index: 60; width: 150px; background: var(--card); padding: 10px; border-right: 2px solid var(--p); font-weight: bold; }
-        .cd { width: 35px; text-align: center; border-right: 1px solid var(--brd); }
+        .cd { width: 35px; text-align: center; border-right: 1px solid var(--brd); position: relative; }
+        .cd.sunday { border-right: 2px solid var(--sun) !important; }
         .ct { width: 80px; position: sticky; right: 0; background: var(--card); z-index: 40; border-left: 2px solid var(--p); text-align: center; color: var(--s); font-weight: 900; font-size: 13px; }
         .sq-h { width: 24px; height: 24px; border: 1px solid var(--brd); border-radius: 5px; margin: 3px auto; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--bg); font-size: 12px; color: var(--p); font-weight: bold; }
         .sq-h.on { background: var(--s); color: #000; border: none; }
@@ -62,33 +64,39 @@
     </div>
 </div>
 
-<div id="screen-app" class="hidden">
-    <div class="header">
-        <div class="lang-s">
-            <button class="l-btn" id="l-ru" onclick="setLang('ru')">RU</button>
-            <button class="l-btn" id="l-tj" onclick="setLang('tj')">TJ</button>
-            <button class="l-btn" id="l-en" onclick="setLang('en')">EN</button>
-            <button class="l-btn" onclick="toggleTheme()" style="margin-left:8px; background:#475569">🌓</button>
+<div id="screen-app" class="hidden" style="display: flex; flex-direction: column; height: 100vh;">
+    <div style="flex-shrink: 0;">
+        <div class="header">
+            <div class="lang-s">
+                <button class="l-btn" id="l-ru" onclick="setLang('ru')">RU</button>
+                <button class="l-btn" id="l-tj" onclick="setLang('tj')">TJ</button>
+                <button class="l-btn" id="l-en" onclick="setLang('en')">EN</button>
+                <button class="l-btn" onclick="toggleTheme()" style="margin-left:8px; background:#475569">🌓</button>
+            </div>
+            <button id="btn-exit" onclick="location.reload()" style="background:#ef4444; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; cursor:pointer">ВЫХОД</button>
         </div>
-        <button id="btn-exit" onclick="location.reload()" style="background:#ef4444; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; cursor:pointer">ВЫХОД</button>
+
+        <div class="controls">
+            <input type="text" id="nw" class="txt-in" placeholder="Имя мастера">
+            <button onclick="addW()" style="background:var(--p); color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:bold">OK</button>
+            <button onclick="genPDF()" style="background:#fff; color:#000; border:none; padding:10px 15px; border-radius:6px; font-weight:bold">PDF</button>
+        </div>
+        
+        <div class="controls" style="padding-top:0">
+            <select id="mS" onchange="render()" style="flex:1; background:var(--card); color:var(--txt); border:1px solid var(--brd); padding:8px; border-radius:6px;"></select>
+            <select id="yS" onchange="render()" style="flex:1; background:var(--card); color:var(--txt); border:1px solid var(--brd); padding:8px; border-radius:6px;"></select>
+        </div>
     </div>
 
-    <div class="controls">
-        <input type="text" id="nw" class="txt-in" placeholder="Имя мастера">
-        <button onclick="addW()" style="background:var(--p); color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:bold">OK</button>
-        <button onclick="genPDF()" style="background:#fff; color:#000; border:none; padding:10px 15px; border-radius:6px; font-weight:bold">PDF</button>
-    </div>
-    
-    <div class="controls" style="padding-top:0">
-        <select id="mS" onchange="render()" style="flex:1; background:var(--card); color:var(--txt); border:1px solid var(--brd); padding:8px; border-radius:6px;"></select>
-        <select id="yS" onchange="render()" style="flex:1; background:var(--card); color:var(--txt); border:1px solid var(--brd); padding:8px; border-radius:6px;"></select>
-    </div>
-
-    <div class="view">
+    <div class="view" style="flex: 1; overflow: auto;">
         <table>
             <thead><tr id="hRow"><th class="cw" id="th-m">МАСТЕР</th><th class="ct" id="th-t">ИТОГО</th></tr></thead>
             <tbody id="tBody"></tbody>
         </table>
+    </div>
+    
+    <div class="total-footer" id="totalFooter">
+        ИТОГО ЗАРПЛАТА: 0 TJS
     </div>
 </div>
 
@@ -106,9 +114,9 @@
     let mode = 'local', userUid = 'local_user', pinCode = null, workers = [], curL = 'ru';
 
     const dict = {
-        ru: { m: "МАСТЕР", t: "ИТОГО", h: "Часы", r: "Ставка", ph: "Имя мастера", exit: "ВЫХОД", pinT: "Введите PIN", pinN: "Придумайте PIN", enter: "ВХОД", adv: "Аванс:", qh: "Часы (0-24):", mo: ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"] },
-        tj: { m: "УСТО", t: "ҶАЪМ", h: "Соат", r: "Нарх", ph: "Номи усто", exit: "ХУРУҶ", pinT: "Рамзро нависед", pinN: "Рамзи нав", enter: "ВОРУД", adv: "Аванс:", qh: "Соат (0-24):", mo: ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"] },
-        en: { m: "MASTER", t: "TOTAL", h: "Hrs", r: "Rate", ph: "Master Name", exit: "EXIT", pinT: "Enter PIN", pinN: "Create PIN", enter: "LOGIN", adv: "Adv:", qh: "Hours (0-24):", mo: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] }
+        ru: { m: "МАСТЕР", t: "ИТОГО", h: "Часы", r: "Ставка", ph: "Имя мастера", exit: "ВЫХОД", pinT: "Введите PIN", pinN: "Придумайте PIN", enter: "ВХОД", adv: "Аванс:", qh: "Часы (0-24):", mo: ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"], total: "ИТОГО ЗАРПЛАТА:" },
+        tj: { m: "УСТО", t: "ҶАЪМ", h: "Соат", r: "Нарх", ph: "Номи усто", exit: "ХУРУҶ", pinT: "Рамзро нависед", pinN: "Рамзи нав", enter: "ВОРУД", adv: "Аванс:", qh: "Соат (0-24):", mo: ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"], total: "ҶАЪМИ МАОШ:" },
+        en: { m: "MASTER", t: "TOTAL", h: "Hrs", r: "Rate", ph: "Master Name", exit: "EXIT", pinT: "Enter PIN", pinN: "Create PIN", enter: "LOGIN", adv: "Adv:", qh: "Hours (0-24):", mo: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], total: "TOTAL SALARY:" }
     };
 
     window.toggleTheme = () => document.getElementById('mainBody').classList.toggle('light');
@@ -169,15 +177,38 @@
         const y=yS.value, m=mS.value, days=new Date(y, parseInt(m)+1, 0).getDate();
         const hr = document.getElementById('hRow');
         while(hr.children.length > 2) hr.removeChild(hr.children[1]);
-        for(let d=1; d<=days; d++) { let th = document.createElement('th'); th.className='cd'; th.innerText=d; hr.insertBefore(th, hr.children[d]); }
+        
+        // Добавляем заголовки дней с определением воскресений
+        for(let d=1; d<=days; d++) { 
+            let th = document.createElement('th'); 
+            th.className='cd'; 
+            th.innerText=d; 
+            
+            // Определяем день недели (0 - воскресенье, 1 - понедельник, ...)
+            const dayOfWeek = new Date(y, parseInt(m), d).getDay();
+            if(dayOfWeek === 0) {
+                th.classList.add('sunday');
+            }
+            
+            hr.insertBefore(th, hr.children[d]); 
+        }
+        
         const tb = document.getElementById('tBody'); tb.innerHTML = '';
+        let grandTotal = 0;
+        
         workers.forEach((w, idx) => {
             let total = 0, hours = 0;
             let html = `<td class="cw">${w.n}<br><small>${dict[curL].h}: <span id="th_${idx}">0</span></small><br><input type="number" value="${w.r}" onchange="updR(${idx},this.value)"><br><span onclick="delW(${idx})" style="color:#ef4444;cursor:pointer;font-size:9px">УДАЛИТЬ</span></td>`;
+            
             for(let d=1; d<=days; d++) {
                 let k=`${y}_${m}_${d}`, h=w.d[k]?.h||0, a=w.d[k]?.a||0;
                 hours+=h; total+=(h*(w.r/8))-a;
-                html += `<td class="cd">
+                
+                // Определяем день недели для ячейки
+                const dayOfWeek = new Date(y, parseInt(m), d).getDay();
+                const isSunday = dayOfWeek === 0;
+                
+                html += `<td class="cd ${isSunday ? 'sunday' : ''}">
                     <div class="sq-h ${h==8?'on':''}" onclick="setH(${idx},'${k}',8)" oncontextmenu="setCus(event,${idx},'${k}')">${(h>0&&h!=8)?h:''}</div>
                     <div class="sq-a ${a>0?'on':''}" onclick="setA(${idx},'${k}')">${a>0?a:'$'}</div>
                 </td>`;
@@ -185,10 +216,14 @@
             html += `<td class="ct">${fN(total)}</td>`;
             let row = document.createElement('tr'); row.innerHTML = html; tb.appendChild(row);
             setTimeout(() => { let el=document.getElementById(`th_${idx}`); if(el) el.innerText = hours; }, 0);
+            grandTotal += total;
         });
+        
+        // Обновляем итоговую сумму внизу
+        document.getElementById('totalFooter').innerText = `${dict[curL].total} ${fN(grandTotal)} TJS`;
     }
 
-    window.saveData = async () => { if(mode==='local') localStorage.setItem('mp_data',JSON.stringify(workers)); else await setDoc(doc(db,"data",userUid),{w:workers}); }
+    window.saveData = async () => { if(mode==='local') localStorage.setItem('mp_data',JSON.stringify(workers)); else await setDoc(doc(db,"data",userUid),{w:workers}); render(); }
     window.updR = (i,v) => { workers[i].r = v; saveData(); render(); }
     window.delW = (i) => { if(confirm('Удалить?')) { workers.splice(i,1); saveData(); render(); } }
     window.setH = (i,k,v) => { if(!workers[i].d[k]) workers[i].d[k]={}; workers[i].d[k].h=(workers[i].d[k].h===8?0:8); saveData(); render(); }
@@ -228,12 +263,28 @@
             return [tr(w.n), h_sum, fN(t) + " TJS"];
         });
 
+        // Добавляем итоговую строку
+        let grandTotal = workers.reduce((sum, w) => {
+            let t=0; 
+            const daysInMonth = new Date(y, parseInt(m)+1, 0).getDate();
+            for(let d=1; d<=daysInMonth; d++){
+                let k = `${y}_${m}_${d}`;
+                let h = w.d[k]?.h || 0;
+                let a = w.d[k]?.a || 0;
+                t += (h * (w.r/8)) - a;
+            }
+            return sum + t;
+        }, 0);
+        
+        rows.push(['ИТОГО', '', fN(grandTotal) + " TJS"]);
+
         docP.autoTable({ 
             head: [['Master', 'Hours', 'Total']], 
             body: rows, 
             startY: 25,
             theme: 'grid',
-            headStyles: { fillColor: [249, 115, 22] }
+            headStyles: { fillColor: [249, 115, 22] },
+            footStyles: { fillColor: [249, 115, 22], textColor: [255, 255, 255], fontStyle: 'bold' }
         });
         docP.save(`Report_${monthName}_${y}.pdf`);
     }
@@ -249,4 +300,5 @@
     setLang('ru');
 </script>
 </body>
-</html>
+
+</html>ЫЫЫ
