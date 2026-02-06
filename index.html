@@ -37,21 +37,26 @@
         .cw { position: sticky; left: 0; z-index: 60; width: 150px; background: var(--card); padding: 10px; border-right: 2px solid var(--p); font-weight: bold; }
         .cd { width: 35px; text-align: center; border-right: 1px solid var(--brd); position: relative; }
         
-        /* --- ИЗМЕНЕНИЯ ЗДЕСЬ (КРАСНАЯ ПОДСВЕТКА) --- */
         .cd.sunday { 
             border-right: 1px solid var(--sun) !important; 
-            background-color: rgba(239, 68, 68, 0.2) !important; /* Красный фон */
-            color: var(--sun) !important; /* Красный текст */
+            background-color: rgba(239, 68, 68, 0.1) !important;
+            color: var(--sun) !important;
         }
-        thead th.cd.sunday {
-             background-color: rgba(239, 68, 68, 0.3) !important; /* Чуть темнее в шапке */
-        }
-        /* ------------------------------------------- */
+        thead th.cd.sunday { background-color: rgba(239, 68, 68, 0.2) !important; }
 
         .ct { width: 80px; position: sticky; right: 0; background: var(--card); z-index: 40; border-left: 2px solid var(--p); text-align: center; color: var(--s); font-weight: 900; font-size: 13px; }
-        .sq-h { width: 24px; height: 24px; border: 1px solid var(--brd); border-radius: 5px; margin: 3px auto; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--bg); font-size: 12px; color: var(--p); font-weight: bold; }
+        
+        /* КЛЕТКА ЧАСОВ */
+        .sq-h { width: 24px; height: 24px; border: 1px solid var(--brd); border-radius: 5px; margin: 3px auto; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--bg); font-size: 12px; color: var(--p); font-weight: bold; user-select: none; }
+        
+        /* ЗЕЛЕНАЯ ГАЛОЧКА (8 часов) */
         .sq-h.on { background: var(--s); color: #000; border: none; }
         .sq-h.on::after { content: '✓'; }
+        
+        /* КРАСНЫЙ КРЕСТИК (Пропуск/0 часов) */
+        .sq-h.off { background: var(--sun); color: #fff; border: none; }
+        .sq-h.off::after { content: '✕'; font-weight: 900; font-size: 14px; }
+
         .sq-a { width: 22px; height: 16px; border: 1px dashed var(--p); border-radius: 10px; margin: 3px auto; cursor: pointer; font-size: 9px; color: var(--p); display: flex; align-items: center; justify-content: center; }
         .sq-a.on { background: var(--p); color: #fff; border-style: solid; }
     </style>
@@ -189,18 +194,12 @@
         const hr = document.getElementById('hRow');
         while(hr.children.length > 2) hr.removeChild(hr.children[1]);
         
-        // Добавляем заголовки дней с определением воскресений
         for(let d=1; d<=days; d++) { 
             let th = document.createElement('th'); 
             th.className='cd'; 
             th.innerText=d; 
-            
-            // Определяем день недели (0 - воскресенье, 1 - понедельник, ...)
             const dayOfWeek = new Date(y, parseInt(m), d).getDay();
-            if(dayOfWeek === 0) {
-                th.classList.add('sunday');
-            }
-            
+            if(dayOfWeek === 0) th.classList.add('sunday');
             hr.insertBefore(th, hr.children[d]); 
         }
         
@@ -213,14 +212,25 @@
             
             for(let d=1; d<=days; d++) {
                 let k=`${y}_${m}_${d}`, h=w.d[k]?.h||0, a=w.d[k]?.a||0;
-                hours+=h; total+=(h*(w.r/8))-a;
                 
-                // Определяем день недели для ячейки
+                // h = -1 это крестик, считается как 0
+                let calcH = (h > 0) ? h : 0; 
+                hours += calcH; 
+                total += (calcH * (w.r/8)) - a;
+                
                 const dayOfWeek = new Date(y, parseInt(m), d).getDay();
                 const isSunday = dayOfWeek === 0;
                 
+                // Классы для отображения
+                let cellClass = '';
+                if(h === 8) cellClass = 'on'; // Зеленая галочка
+                else if(h === -1) cellClass = 'off'; // Красный крестик
+
+                // Текст внутри (если не галочка и не крестик)
+                let cellText = (h > 0 && h !== 8) ? h : '';
+
                 html += `<td class="cd ${isSunday ? 'sunday' : ''}">
-                    <div class="sq-h ${h==8?'on':''}" onclick="setH(${idx},'${k}',8)" oncontextmenu="setCus(event,${idx},'${k}')">${(h>0&&h!=8)?h:''}</div>
+                    <div class="sq-h ${cellClass}" onclick="setH(${idx},'${k}')" oncontextmenu="setCus(event,${idx},'${k}')">${cellText}</div>
                     <div class="sq-a ${a>0?'on':''}" onclick="setA(${idx},'${k}')">${a>0?a:'$'}</div>
                 </td>`;
             }
@@ -230,15 +240,26 @@
             grandTotal += total;
         });
         
-        // Обновляем итоговую сумму внизу
         document.getElementById('totalFooter').innerText = `${dict[curL].total} ${fN(grandTotal)} TJS`;
     }
 
     window.saveData = async () => { if(mode==='local') localStorage.setItem('mp_data',JSON.stringify(workers)); else await setDoc(doc(db,"data",userUid),{w:workers}); render(); }
     window.updR = (i,v) => { workers[i].r = v; saveData(); render(); }
     window.delW = (i) => { if(confirm('Удалить?')) { workers.splice(i,1); saveData(); render(); } }
-    window.setH = (i,k,v) => { if(!workers[i].d[k]) workers[i].d[k]={}; workers[i].d[k].h=(workers[i].d[k].h===8?0:8); saveData(); render(); }
     
+    // --- НОВАЯ ЛОГИКА НАЖАТИЯ (ЦИКЛ: 0 -> 8 -> -1 -> 0) ---
+    window.setH = (i,k) => { 
+        if(!workers[i].d[k]) workers[i].d[k]={};
+        let cur = workers[i].d[k].h || 0;
+        
+        if(cur === 0) workers[i].d[k].h = 8;        // Было пусто -> стало 8 (Зеленая галочка)
+        else if(cur === 8) workers[i].d[k].h = -1;  // Было 8 -> стал Крестик (Красный)
+        else workers[i].d[k].h = 0;                 // Был Крестик или другое -> стало Пусто
+
+        saveData(); render(); 
+    }
+    
+    // Долгое нажатие (оставил как было)
     window.setCus = (e,i,k) => { 
         e.preventDefault(); 
         let v = prompt(dict[curL].qh); 
@@ -268,13 +289,14 @@
                 let k = `${y}_${m}_${d}`;
                 let h = w.d[k]?.h || 0;
                 let a = w.d[k]?.a || 0;
-                h_sum += h;
-                t += (h * (w.r/8)) - a;
+                let calcH = (h > 0) ? h : 0; // Игнорируем крестик (-1)
+                h_sum += calcH;
+                t += (calcH * (w.r/8)) - a;
             }
             return [tr(w.n), h_sum, fN(t) + " TJS"];
         });
 
-        // Добавляем итоговую строку
+        // Итоговая строка
         let grandTotal = workers.reduce((sum, w) => {
             let t=0; 
             const daysInMonth = new Date(y, parseInt(m)+1, 0).getDate();
@@ -282,7 +304,8 @@
                 let k = `${y}_${m}_${d}`;
                 let h = w.d[k]?.h || 0;
                 let a = w.d[k]?.a || 0;
-                t += (h * (w.r/8)) - a;
+                let calcH = (h > 0) ? h : 0;
+                t += (calcH * (w.r/8)) - a;
             }
             return sum + t;
         }, 0);
@@ -304,7 +327,6 @@
     const curY = new Date().getFullYear();
     for(let y=2025; y<=2028; y++) yS.add(new Option(y, y, false, y===curY));
     
-    // Авто-логин
     const sm = localStorage.getItem('user_mode');
     if(sm) { mode = sm; userUid = localStorage.getItem('user_uid') || 'local_user'; checkPinSetup(); }
     
