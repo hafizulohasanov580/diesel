@@ -46,7 +46,6 @@
         .cw { position: sticky; left: 0; z-index: 60; width: 150px; background: var(--card); padding: 10px; border-right: 2px solid var(--p); font-weight: bold; line-height: 1.2; }
         .cd { width: 35px; text-align: center; border-right: 1px solid var(--brd); position: relative; }
         
-        /* КРАСНЫЙ ФОН ДЛЯ ВОСКРЕСЕНЬЯ */
         .cd.sunday { background-color: rgba(255, 0, 0, 0.35) !important; color: #ff3333 !important; font-weight: bold; }
         thead th.cd.sunday { background-color: #ff0000 !important; color: #ffffff !important; }
 
@@ -125,9 +124,9 @@
     let mode = 'local', userUid = 'local_user', pinCode = null, workers = [], curL = 'ru';
 
     const dict = {
-        ru: { m: "МАСТЕР", t: "ИТОГО", h: "Ч", r: "Ст", ph: "Имя мастера", exit: "ВЫХОД", pinT: "Введите PIN", pinN: "Новый PIN", enter: "ВХОД", adv: "Аванс:", qh: "Часы:", mo: ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"], total: "ИТОГО ЗАРПЛАТА:" },
-        tj: { m: "УСТО", t: "ҶАЪМ", h: "С", r: "Н", ph: "Номи усто", exit: "ХУРУҶ", pinT: "Рамз", pinN: "Рамзи нав", enter: "ВОРУД", adv: "Аванс:", qh: "Соат:", mo: ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"], total: "ҶАЪМИ МАОШ:" },
-        en: { m: "MASTER", t: "TOTAL", h: "H", r: "R", ph: "Name", exit: "EXIT", pinT: "PIN", pinN: "New PIN", enter: "LOGIN", adv: "Adv:", qh: "Hours:", mo: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], total: "TOTAL SALARY:" }
+        ru: { m: "МАСТЕР", t: "ИТОГО", h: "Ч", r: "Ст", ph: "Имя мастера", exit: "ВЫХОД", pinT: "Введите PIN", pinN: "Новый PIN", enter: "ВХОД", adv: "Аванс:", qh: "Часы:", mo: ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"], total: "ИТОГО ЗАРПЛАТА:" },
+        tj: { m: "УСТО", t: "ҶАЪМ", h: "С", r: "Н", ph: "Номи усто", exit: "ХУРУҶ", pinT: "Рамз", pinN: "Рамзи нав", enter: "ВОРУД", adv: "Аванс:", qh: "Соат:", mo: ["Январ","Феврал","Март","Апрел","Май","Июн","Июл","Август","Сентябр","Октябр","Ноябр","Декабр"], total: "ҶАЪМИ МАОШ:" },
+        en: { m: "MASTER", t: "TOTAL", h: "H", r: "R", ph: "Name", exit: "EXIT", pinT: "PIN", pinN: "New PIN", enter: "LOGIN", adv: "Adv:", qh: "Hours:", mo: ["January","February","March","April","May","June","July","August","September","October","November","December"], total: "TOTAL SALARY:" }
     };
 
     window.toggleTheme = () => document.getElementById('mainBody').classList.toggle('light');
@@ -233,17 +232,41 @@
         const { jsPDF } = window.jspdf;
         const docP = new jsPDF();
         const y = yS.value, m = mS.value;
-        docP.text(`DIZEL CENTRE - ${dict[curL].mo[m]} ${y}`, 105, 15, {align:"center"});
+        
+        // Транслитерация месяца для заголовка, чтобы не было иероглифов
+        const monthNameLat = tr(dict['ru'].mo[m]); 
+
+        docP.setFontSize(16);
+        docP.text(`DIZEL CENTRE - ${monthNameLat} ${y}`, 105, 15, {align:"center"});
+        
+        let grandTotal = 0;
         let rows = workers.map(w => {
-            let t=0, h_s=0; 
-            for(let d=1; d<=new Date(y, parseInt(m)+1, 0).getDate(); d++){
+            let t = 0, h_s = 0; 
+            const dCount = new Date(y, parseInt(m)+1, 0).getDate();
+            for(let d=1; d<=dCount; d++){
                 let k = `${y}_${m}_${d}`, h = w.d[k]?.h || 0, a = w.d[k]?.a || 0;
                 let cH = h > 0 ? h : 0; h_s += cH; t += (cH * (w.r/8)) - a;
             }
+            grandTotal += t;
             return [tr(w.n), h_s, fN(t) + " TJS"];
         });
-        docP.autoTable({ head: [['Master', 'Hours', 'Total']], body: rows, startY: 25, theme: 'grid', headStyles: { fillColor: [249, 115, 22] } });
-        docP.save(`Report_${y}_${m}.pdf`);
+
+        // Строка ИТОГО внизу
+        rows.push([
+            { content: 'GRAND TOTAL:', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: fN(grandTotal) + " TJS", styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }
+        ]);
+
+        docP.autoTable({ 
+            head: [['Master', 'Total Hours', 'Total Salary']], 
+            body: rows, 
+            startY: 25, 
+            theme: 'grid', 
+            headStyles: { fillColor: [249, 115, 22] },
+            styles: { fontSize: 10 }
+        });
+
+        docP.save(`Report_${monthNameLat}_${y}.pdf`);
     }
 
     const mS=document.getElementById('mS'), yS=document.getElementById('yS');
