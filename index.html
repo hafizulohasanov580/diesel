@@ -232,8 +232,6 @@
         const { jsPDF } = window.jspdf;
         const docP = new jsPDF();
         const y = yS.value, m = mS.value;
-        
-        // Транслитерация месяца для заголовка, чтобы не было иероглифов
         const monthNameLat = tr(dict['ru'].mo[m]); 
 
         docP.setFontSize(16);
@@ -241,24 +239,27 @@
         
         let grandTotal = 0;
         let rows = workers.map(w => {
-            let t = 0, h_s = 0; 
+            let totalSalary = 0, totalHours = 0, totalAdvance = 0; 
             const dCount = new Date(y, parseInt(m)+1, 0).getDate();
             for(let d=1; d<=dCount; d++){
                 let k = `${y}_${m}_${d}`, h = w.d[k]?.h || 0, a = w.d[k]?.a || 0;
-                let cH = h > 0 ? h : 0; h_s += cH; t += (cH * (w.r/8)) - a;
+                let cH = h > 0 ? h : 0; 
+                totalHours += cH; 
+                totalAdvance += a;
+                totalSalary += (cH * (w.r/8)) - a;
             }
-            grandTotal += t;
-            return [tr(w.n), h_s, fN(t) + " TJS"];
+            grandTotal += totalSalary;
+            // Колонки: Имя, Часы, Аванс, Итоговая Зарплата
+            return [tr(w.n), totalHours, fN(totalAdvance) + " TJS", fN(totalSalary) + " TJS"];
         });
 
-        // Строка ИТОГО внизу
         rows.push([
-            { content: 'GRAND TOTAL:', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: 'GRAND TOTAL:', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
             { content: fN(grandTotal) + " TJS", styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }
         ]);
 
         docP.autoTable({ 
-            head: [['Master', 'Total Hours', 'Total Salary']], 
+            head: [['Master', 'Hours', 'Advance', 'Total']], 
             body: rows, 
             startY: 25, 
             theme: 'grid', 
