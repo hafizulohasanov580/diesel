@@ -124,9 +124,9 @@
     let mode = 'local', userUid = 'local_user', pinCode = null, workers = [], curL = 'ru';
 
     const dict = {
-        ru: { m: "МАСТЕР", t: "ИТОГО", h: "Ч", r: "Ст", ph: "Имя мастера", exit: "ВЫХОД", pinT: "Введите PIN", pinN: "Новый PIN", enter: "ВХОД", adv: "Аванс:", qh: "Часы:", mo: ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"], total: "ИТОГО ЗАРПЛАТА:" },
-        tj: { m: "УСТО", t: "ҶАЪМ", h: "С", r: "Н", ph: "Номи усто", exit: "ХУРУҶ", pinT: "Рамз", pinN: "Рамзи нав", enter: "ВОРУД", adv: "Аванс:", qh: "Соат:", mo: ["Январ","Феврал","Март","Апрел","Май","Июн","Июл","Август","Сентябр","Октябр","Ноябр","Декабр"], total: "ҶАЪМИ МАОШ:" },
-        en: { m: "MASTER", t: "TOTAL", h: "H", r: "R", ph: "Name", exit: "EXIT", pinT: "PIN", pinN: "New PIN", enter: "LOGIN", adv: "Adv:", qh: "Hours:", mo: ["January","February","March","April","May","June","July","August","September","October","November","December"], total: "TOTAL SALARY:" }
+        ru: { m: "МАСТЕР", t: "ИТОГО", h: "Ч", d: "Д", r: "Ст", ph: "Имя мастера", exit: "ВЫХОД", pinT: "Введите PIN", pinN: "Новый PIN", enter: "ВХОД", adv: "Аванс:", qh: "Часы:", mo: ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"], total: "ИТОГО ЗАРПЛАТА:" },
+        tj: { m: "УСТО", t: "ҶАЪМ", h: "С", d: "Р", r: "Н", ph: "Номи усто", exit: "ХУРУҶ", pinT: "Рамз", pinN: "Рамзи нав", enter: "ВОРУД", adv: "Аванс:", qh: "Соат:", mo: ["Январ","Феврал","Март","Апрел","Май","Июн","Июл","Август","Сентябр","Октябр","Ноябр","Декабр"], total: "ҶАЪМИ МАОШ:" },
+        en: { m: "MASTER", t: "TOTAL", h: "H", d: "D", r: "R", ph: "Name", exit: "EXIT", pinT: "PIN", pinN: "New PIN", enter: "LOGIN", adv: "Adv:", qh: "Hours:", mo: ["January","February","March","April","May","June","July","August","September","October","November","December"], total: "TOTAL SALARY:" }
     };
 
     window.toggleTheme = () => document.getElementById('mainBody').classList.toggle('light');
@@ -196,11 +196,17 @@
         
         workers.forEach((w, idx) => {
             let total = 0, hours = 0;
-            let html = `<td class="cw">${w.n}<br><small>${dict[curL].h}:<span id="th_${idx}">0</span></small> <input type="number" value="${w.r}" onchange="updR(${idx},this.value)"><br><span onclick="delW(${idx})" style="color:var(--sun);cursor:pointer;font-size:9px">УДАЛИТЬ</span></td>`;
-            
+            // Сначала считаем общие часы для этого мастера
             for(let d=1; d<=days; d++) {
                 let k=`${y}_${m}_${d}`, h=w.d[k]?.h||0, a=w.d[k]?.a||0;
                 let calcH = (h > 0) ? h : 0; hours += calcH; total += (calcH * (w.r/8)) - a;
+            }
+
+            let daysVal = (hours / 8).toFixed(1).replace('.0', '');
+            let html = `<td class="cw">${w.n}<br><small>${dict[curL].h}: ${hours} | ${dict[curL].d}: ${daysVal}</small><br><input type="number" value="${w.r}" onchange="updR(${idx},this.value)"><br><span onclick="delW(${idx})" style="color:var(--sun);cursor:pointer;font-size:9px">УДАЛИТЬ</span></td>`;
+            
+            for(let d=1; d<=days; d++) {
+                let k=`${y}_${m}_${d}`, h=w.d[k]?.h||0, a=w.d[k]?.a||0;
                 let cellClass = h === 8 ? 'on' : (h === -1 ? 'off' : '');
                 let cellText = (h > 0 && h !== 8) ? h : '';
                 html += `<td class="cd ${new Date(y, parseInt(m), d).getDay()===0?'sunday':''}">
@@ -210,7 +216,6 @@
             }
             html += `<td class="ct">${fN(total)}</td>`;
             let row = document.createElement('tr'); row.innerHTML = html; tb.appendChild(row);
-            setTimeout(() => { let el=document.getElementById(`th_${idx}`); if(el) el.innerText = hours; }, 0);
             grandTotal += total;
         });
         document.getElementById('totalFooter').innerText = `${dict[curL].total} ${fN(grandTotal)} TJS`;
@@ -230,12 +235,13 @@
 
     window.genPDF = () => {
         const { jsPDF } = window.jspdf;
-        const docP = new jsPDF();
+        const docP = new jsPDF('l', 'mm', 'a4'); 
         const y = yS.value, m = mS.value;
         const monthNameLat = tr(dict['ru'].mo[m]); 
 
-        docP.setFontSize(16);
-        docP.text(`DIZEL CENTRE - ${monthNameLat} ${y}`, 105, 15, {align:"center"});
+        docP.setFontSize(18);
+        docP.setTextColor(249, 115, 22);
+        docP.text(`DIZEL CENTRE REPORT - ${monthNameLat} ${y}`, 148, 15, {align:"center"});
         
         let grandTotal = 0;
         let rows = workers.map(w => {
@@ -249,25 +255,38 @@
                 totalSalary += (cH * (w.r/8)) - a;
             }
             grandTotal += totalSalary;
-            // Колонки: Имя, Часы, Аванс, Итоговая Зарплата
-            return [tr(w.n), totalHours, fN(totalAdvance) + " TJS", fN(totalSalary) + " TJS"];
+            
+            let daysFormatted = (totalHours / 8).toFixed(1).replace('.0', '');
+            
+            return [
+                tr(w.n), 
+                w.r, 
+                totalHours, 
+                daysFormatted, 
+                fN(totalAdvance), 
+                fN(totalSalary) + " TJS"
+            ];
         });
 
         rows.push([
-            { content: 'GRAND TOTAL:', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
-            { content: fN(grandTotal) + " TJS", styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }
+            { content: 'GRAND TOTAL:', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: fN(grandTotal) + " TJS", styles: { fontStyle: 'bold', fillColor: [249, 115, 22], textColor: 255 } }
         ]);
 
         docP.autoTable({ 
-            head: [['Master', 'Hours', 'Advance', 'Total']], 
+            head: [['Master Name', 'Rate/Day', 'Hours', 'Days(8h)', 'Advance', 'Total To Pay']], 
             body: rows, 
             startY: 25, 
             theme: 'grid', 
-            headStyles: { fillColor: [249, 115, 22] },
-            styles: { fontSize: 10 }
+            headStyles: { fillColor: [249, 115, 22], halign: 'center' },
+            styles: { fontSize: 10, halign: 'center', cellPadding: 3 },
+            columnStyles: {
+                0: { halign: 'left', fontStyle: 'bold' },
+                5: { fontStyle: 'bold' }
+            }
         });
 
-        docP.save(`Report_${monthNameLat}_${y}.pdf`);
+        docP.save(`Dizel_Report_${monthNameLat}_${y}.pdf`);
     }
 
     const mS=document.getElementById('mS'), yS=document.getElementById('yS');
